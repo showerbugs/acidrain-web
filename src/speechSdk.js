@@ -18,54 +18,22 @@ function RecognizerSetup(SDK, recognitionMode, language, format, subscriptionKey
     return SDK.CreateRecognizer(recognizerConfig, authentication);
 }
 
-function RecognizerStart(SDK, recognizer) {
+function RecognizerStart(recognizer, success) {
     recognizer.Recognize((event) => {
-        /*
-         Alternative syntax for typescript devs.
-         if (event instanceof SDK.RecognitionTriggeredEvent)
-         */
         switch (event.Name) {
-            case "RecognitionTriggeredEvent" :
-                UpdateStatus("Initializing");
-                break;
-            case "ListeningStartedEvent" :
-                UpdateStatus("Listening");
-                break;
-            case "RecognitionStartedEvent" :
-                UpdateStatus("Listening_Recognizing");
-                break;
-            case "SpeechStartDetectedEvent" :
-                UpdateStatus("Listening_DetectedSpeech_Recognizing");
-                console.log(JSON.stringify(event.Result)); // check console for other information in result
-                break;
             case "SpeechHypothesisEvent" :
-                UpdateRecognizedHypothesis(event.Result.Text);
-                console.log(JSON.stringify(event.Result)); // check console for other information in result
-                break;
-            case "SpeechEndDetectedEvent" :
-                OnSpeechEndDetected();
-                UpdateStatus("Processing_Adding_Final_Touches");
-                console.log(JSON.stringify(event.Result)); // check console for other information in result
-                break;
-            case "SpeechSimplePhraseEvent" :
-                UpdateRecognizedPhrase(JSON.stringify(event.Result, null, 3));
-                break;
-            case "SpeechDetailedPhraseEvent" :
-                UpdateRecognizedPhrase(JSON.stringify(event.Result, null, 3));
+                success(event.Result.Text);
                 break;
             case "RecognitionEndedEvent" :
-                OnComplete();
-                UpdateStatus("Idle");
-                console.log(JSON.stringify(event)); // Debug information
+                RecognizerStart(recognizer, success);
                 break;
         }
-    })
-        .On(() => {
+    }).On(() => {
             // The request succeeded. Nothing to do here.
         },
         (error) => {
             console.error(error);
-        });
+        });;
 }
 
 function RecognizerStop(SDK, recognizer) {
@@ -73,11 +41,19 @@ function RecognizerStop(SDK, recognizer) {
     recognizer.AudioSource.TurnOff();
 }
 
+
+
+
 function init(callback) {
-    return requireAmd(["Speech.Browser.Sdk"], (SDK) => {
-        var recognize = RecognizerSetup(SDK, 'Dictation', 'en_US', 'Simple', '69971df45fcf4deab367f459badab817');
-        callback(SDK, recognize)
-        return recognize;
+    var recognize, recognize2;
+    requireAmd(["Speech.Browser.Sdk"], (SDK) => {
+        recognize = RecognizerSetup(SDK, SDK.RecognitionMode.Interactive, 'en-US', 'Simple', '69971df45fcf4deab367f459badab817');
+        RecognizerStart(recognize, callback)
+
+        setTimeout(function() {
+            recognize2 = RecognizerSetup(SDK, SDK.RecognitionMode.Interactive, 'en-US', 'Simple', '232b3c2d5d6848f392b573aa1d6628f7');
+            RecognizerStart(recognize2, callback)
+        }, 2500);
     })
 }
 

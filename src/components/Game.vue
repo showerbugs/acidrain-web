@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div>{{status}}</div>
+        <div class="status">{{status}}{{resultText}}</div>
         <div id="score_bord"></div>
         <div id="message"></div>
         <canvas id="hell"></canvas>
@@ -9,60 +9,13 @@
 
 <script>
     import {init} from '../speechSdk'
-    console.log(init)
-    const wordSet = ['hou', 'index', 'score', 'minho', 'home'];
-
-    function startSpeech(recognizer) {
-        recognizer.Recognize((event) => {
-            /*
-             Alternative syntax for typescript devs.
-             if (event instanceof SDK.RecognitionTriggeredEvent)
-             */
-            switch (event.Name) {
-                case "RecognitionTriggeredEvent" :
-                    UpdateStatus("Initializing");
-                    break;
-                case "ListeningStartedEvent" :
-                    UpdateStatus("Listening");
-                    break;
-                case "RecognitionStartedEvent" :
-                    UpdateStatus("Listening_Recognizing");
-                    break;
-                case "SpeechStartDetectedEvent" :
-                    UpdateStatus("Listening_DetectedSpeech_Recognizing");
-                    console.log(JSON.stringify(event.Result)); // check console for other information in result
-                    break;
-                case "SpeechHypothesisEvent" :
-                    UpdateRecognizedHypothesis(event.Result.Text);
-                    console.log(JSON.stringify(event.Result)); // check console for other information in result
-                    break;
-                case "SpeechEndDetectedEvent" :
-                    OnSpeechEndDetected();
-                    UpdateStatus("Processing_Adding_Final_Touches");
-                    console.log(JSON.stringify(event.Result)); // check console for other information in result
-                    break;
-                case "SpeechSimplePhraseEvent" :
-                    UpdateRecognizedPhrase(JSON.stringify(event.Result, null, 3));
-                    break;
-                case "SpeechDetailedPhraseEvent" :
-                    UpdateRecognizedPhrase(JSON.stringify(event.Result, null, 3));
-                    break;
-                case "RecognitionEndedEvent" :
-                    OnComplete();
-                    UpdateStatus("Idle");
-                    console.log(JSON.stringify(event)); // Debug information
-                    break;
-            }
-        })
-                .On(() => {
-                    // The request succeeded. Nothing to do here.
-                },
-                (error) => {
-                    console.error(error);
-                });
+    function fetchFromServer(url, opt = {}) {
+        opt.headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json'
+        };
+        return fetch(url, opt).then(res => res.json())
     }
-
-
 
     //MooTools $random
     function _random(Min, Max) {
@@ -82,7 +35,7 @@
 
             karma: 0,
 
-            bloodPondLineHeight: 10,
+            bloodPondLineHeight: 50,
             bloodPondHeight: 0,
             bloodPondAlpha: 1,
             bloodParticles: [],
@@ -100,10 +53,10 @@
                     obj.addEventListener(type, fn, false);
             },
 
-            load: function (id) {
+            load: function (id, wordSet) {
 
+                this.wordSet = wordSet;
                 game.canvas = document.getElementById(id);
-                console.log(game.canvas)
                 game.scoreBord = document.getElementById("score_bord");
                 game.message = document.getElementById("message");
 
@@ -157,36 +110,20 @@
 
                     }
 
-                    var index = game.searchString(e.keyCode);
-
-                    if (index !== false) {
-                        game.bones[index].clear = true;
-                        game.pass++;
-                        game.combo++;
-                        game.karma++;
-                        game.totalScore += 100;
-                    } else {
-                        game.miss++;
-                        game.combo = 0;
-                        game.karma -= 2;
-                        game.totalScore -= 100;
-                        game.bloodPondHeight += game.bloodPondLineHeight;//池拡張
-                    }
-
                 });
 
             },
 
             setPondSize: function () {
-                game.bloodPondLineHeight = Math.floor(game.height / 100);
-                game.bloodPondHeight = Math.floor((game.height / 100) - game.bloodPondLineHeight) * 100;
+                game.bloodPondLineHeight = Math.floor(game.height / 20);
+                game.bloodPondHeight = Math.floor((game.height / 20) - game.bloodPondLineHeight) * 100;
             },
 
             pause: function () {
 
                 if (game.playing) {
                     game.message.className = "pause";
-                    game.message.innerHTML = '<p style="color:#fff;position:absolute;top:50%;left:0;width:100%;margin-top:-40px;text-align:center;font-size:20px;">Typing Blood<br/>- Pause -<br />push enter key</p>';
+                    game.message.innerHTML = '<p style="color:#fff;position:absolute;top:50%;left:0;width:100%;margin-top:-40px;text-align:center;font-size:20px;">Typing Acid Rain<br/>- Pause -<br />push enter key</p>';
                 }
 
                 clearInterval(game.loop_timer);
@@ -212,15 +149,15 @@
                 let tm = game.context.measureText(str);
 
                 game.context.save();
-                game.context.fillStyle = "red";
-                game.context.shadowColor = "#ff0000";
+                game.context.fillStyle = "#333";
+                game.context.shadowColor = "#fff";
                 game.context.shadowBlur = 10;
                 game.context.fillText(str, game.width / 2 - tm.width / 2, game.height / 2 - 80);
                 game.context.restore();
 
                 game.context.font = "30px 'Arial'";
 
-                game.context.fillStyle = "#fff";
+                game.context.fillStyle = "#333";
 
                 str = "[enter] Game start";
                 tm = game.context.measureText(str);
@@ -232,28 +169,24 @@
                 tm = game.context.measureText(str);
                 game.context.fillText(str, game.width / 2 - tm.width / 2, game.height / 2 + 60);
 
-                str = "画面が全て血色に染まったらゲームオーバーです。";
-                tm = game.context.measureText(str);
-                game.context.fillText(str, game.width / 2 - tm.width / 2, game.height / 2 + 75);
-
                 game.context.restore();
             },
 
             setCanvas: function () {
                 game.width = window.innerWidth;
-                game.height = window.innerHeight;
+                game.height = window.innerHeight - 100;
                 game.canvas.height = game.height;
                 game.canvas.width = game.width;
-                game.canvas.style.backgroundColor = "#000";
+                game.canvas.style.backgroundColor = "skyblue";
                 game.canvas.style.position = 'absolute';
                 game.canvas.style.top = "0px";
                 game.canvas.style.left = "0px";
-                game.bloodPondLineHeight = Math.round(game.height / 100);
+                game.bloodPondLineHeight = Math.round(game.height / 20);
             },
 
             createText: function () {
-                var word = wordSet[_random(0, wordSet.length - 1)];
-                var x = Math.floor(_random(35, game.width - 35));
+                var word = _(this.wordSet).difference(_.map(game.bones, 'text')).sample();
+                var x = Math.floor(_random(35, game.width - 300));
                 var y = (game.level > 1) ? Math.floor(0 - 20 * (Math.random() * 7)) : 0;
                 var t = {
                     code: word,
@@ -267,9 +200,9 @@
                 game.bones.push(t);
             },
 
-            searchString: function (code) {
+            searchString: function (text) {
                 for (var key in game.bones) {
-                    if (game.bones[key].code == code) return key;
+                    if (text.toLowerCase().includes(game.bones[key].code.toLowerCase())) return key;
                 }
 
                 return false;
@@ -280,17 +213,17 @@
                 a = (a <= 0) ? 0 : a;
                 game.context.save();
                 var g = game.context.createLinearGradient(0, h, 0, game.width);
-                g.addColorStop(0, 'rgba(' + game.bloodPondHeight + ', 0, 0, ' + a + ')');
-                g.addColorStop(1, 'rgba(' + game.bloodPondLineHeight + ', 0, 0, ' + a + ')');
+                g.addColorStop(0, 'rgba(' + game.bloodPondHeight + ', 55, 55, ' + a + ')');
+                g.addColorStop(1, 'rgba(' + game.bloodPondLineHeight + ', 233, 55, ' + a + ')');
                 game.context.fillStyle = g;
 
                 game.context.beginPath();
                 game.context.rect(0, h, game.width, game.height);
                 game.context.fill();
 
-                game.context.shadowColor = "#ff0000";
+                game.context.shadowColor = "green";
                 game.context.shadowBlur = 5;
-                game.context.strokeStyle = 'rgb(' + (game.bloodPondHeight + 60) + ',0,0)';
+                game.context.strokeStyle = 'rgb(' + (game.bloodPondHeight + 60) + ',200,200)';
                 game.context.beginPath();
                 game.context.lineTo(0, h);
                 game.context.lineTo(game.width, h);
@@ -337,11 +270,12 @@
             },
 
             loop: function () {
-
                 game.context.save();
-                game.createText();
-                if ((game.bones.length < 1 * game.level) && game.playing) {
-                    game.createText();
+                if ((game.bones.length < 10 * game.level) && game.playing) {
+                    var ran = _.random(0, 60);
+                    if(ran === 0) {
+                        game.createText()
+                    }
                 }
 
                 game.context.clearRect(0, 0, game.width, game.height);
@@ -351,7 +285,7 @@
                     var e = game.bones[i];
 
                     if (e.y < borderLine) {
-                        e.y = e.y + 2;
+                        e.y = e.y + 1;
                     } else {
                         e.y = e.y + 0.3;
                     }
@@ -413,7 +347,7 @@
                     p.alpha -= 0.01;
 
                     game.context.save();
-                    game.context.fillStyle = 'rgba(255,0,0,' + Math.max(p.alpha, 0) + ')';
+                    game.context.fillStyle = 'rgba(255,20,20,' + Math.max(p.alpha, 0) + ')';
                     game.context.fillRect(p.x, p.y, 3, 3);
                     game.context.restore();
 
@@ -464,6 +398,18 @@
 
                 var html = "Miss:" + game.miss + "  Passed:" + game.pass + " Combo:" + game.combo + "  Level:" + game.level + "  Score:" + game.totalScore;
                 game.scoreBord.innerHTML = html;
+            },
+
+            checkText: function(text) {
+                var index = game.searchString(text);
+
+                    if (index !== false) {
+                        game.bones[index].clear = true;
+                        game.pass++;
+                        game.combo++;
+                        game.karma++;
+                        game.totalScore += 100;
+                    }
             }
 
         };
@@ -476,17 +422,29 @@
     export default {
         data() {
         return {
-            status: ''
+            status: '',
+            resultText: '',
+            recognize: null,
+            typing: null
         }
     },
         mounted()
     {
-        var typing = new TypingBlood();
-        typing.load('hell');
-        init(function (SDK, recognize) {
-            console.log(recognize)
-            startSpeech(recognize)
-        });
+        fetchFromServer('http://acidrain.azurewebsites.net/sentences?assessment_type=word&difficulty=1&sentence_count=50')
+                .then((json) => {
+        this.typing = new TypingBlood();
+        this.typing.load('hell', _.map(json.sentences, 'body'));
+        init(function (text) {
+            this.resultText = text;
+            this.typing.checkText(text)
+        }.bind(this));
+    })
+
+    },
+    methods: {
+        UpdateStatus (status) {
+            this.status = status;
+        }
     }
 
     }
@@ -532,6 +490,12 @@
 
     canvas {
         z-index: 0;
+    }
+
+    .status {
+        position: fixed;
+        color: #fff;
+        z-index: 9999;
     }
 
 </style>
