@@ -95,6 +95,9 @@ export default {
         })
       })
       .then(result => {
+        return result.text()
+      })
+      .then(result => {
         if (result.success) {
           this.dialog = false
         }
