@@ -478,7 +478,7 @@
         return {
             status: ''
         }
-    }
+    },
         mounted()
     {
         var typing = new TypingBlood();
@@ -492,9 +492,7 @@
     }
 
 
-    function UpdateStatus(status) {
-        document.append(status)
-    }
+
 </script>
 <style scoped>
     body {
