@@ -10,10 +10,8 @@ const router = new Router({
   mode: 'history',
   routes: [
     { path: '/', component: Home, name: 'home' },
-    { path: '/sentence', component: Sentence, name: 'sentence' },
+    { path: '/sentence', component: Sentence, name: 'sentence', props: true },
     { path: '/game', component: Game, name: 'game' }
-    //{ path: '/test', component: BucketsView, name: 'buckets'},
-    //{ path: '/game', component: LinksView, name: 'links' }
   ]
 });
 
